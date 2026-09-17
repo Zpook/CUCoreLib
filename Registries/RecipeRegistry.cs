@@ -29,6 +29,12 @@ namespace CUCoreLib.Registries
 
         private static int PendingHotReloadInjectedRecipeCount;
 
+        private static readonly Dictionary<string, List<QueuedVanillaRecipeEdit>> VanillaRecipeIdEdits =
+            new Dictionary<string, List<QueuedVanillaRecipeEdit>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly List<QueuedVanillaRecipeEdit> VanillaPredicateRecipeEdits =
+            new List<QueuedVanillaRecipeEdit>();
+
         public static void Register(Recipe recipe)
         {
             if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
@@ -188,6 +194,119 @@ namespace CUCoreLib.Registries
             result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
         }
 
+        internal static int QueueVanillaRecipeEdit(string resultId, Action<Recipe> edit)
+        {
+            if (string.IsNullOrWhiteSpace(resultId) || edit == null) return 0;
+
+            var key = resultId.Trim();
+            if (!VanillaRecipeIdEdits.TryGetValue(key, out var edits))
+            {
+                edits = new List<QueuedVanillaRecipeEdit>();
+                VanillaRecipeIdEdits[key] = edits;
+            }
+
+            edits.Add(new QueuedVanillaRecipeEdit(key, edit));
+            CUCoreLibPlugin.Log?.LogInfo($"Recipes: Queued vanilla recipe edit for '{key}'.");
+
+            return Recipes.recipes != null ? ApplyVanillaRecipeEdits() : 0;
+        }
+
+        internal static int QueueVanillaRecipeEdit(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (match == null || edit == null) return 0;
+
+            VanillaPredicateRecipeEdits.Add(new QueuedVanillaRecipeEdit(match, edit));
+            CUCoreLibPlugin.Log?.LogInfo("Recipes: Queued vanilla recipe predicate edit.");
+
+            return Recipes.recipes != null ? ApplyVanillaRecipeEdits() : 0;
+        }
+
+        internal static int ApplyVanillaRecipeEdits()
+        {
+            if (Recipes.recipes == null) return 0;
+            if (VanillaRecipeIdEdits.Count == 0 && VanillaPredicateRecipeEdits.Count == 0) return 0;
+
+            var mutations = 0;
+
+            foreach (var edits in VanillaRecipeIdEdits.Values)
+                foreach (var edit in edits)
+                    mutations += ApplyQueuedEdit(edit);
+
+            foreach (var edit in VanillaPredicateRecipeEdits)
+                mutations += ApplyQueuedEdit(edit);
+
+            if (mutations > 0)
+                CUCoreLibPlugin.Log?.LogInfo($"Recipes: Applied edits to {mutations} vanilla recipe(s).");
+
+            return mutations;
+        }
+
+        private static int ApplyQueuedEdit(QueuedVanillaRecipeEdit edit)
+        {
+            if (Recipes.recipes == null) return 0;
+
+            var mutations = 0;
+            foreach (var recipe in Recipes.recipes.ToArray())
+            {
+                if (IsLibraryRegisteredRecipe(recipe)) continue;
+                mutations += ApplyQueuedEditToRecipe(edit, recipe);
+            }
+
+            return mutations;
+        }
+
+        private static int ApplyQueuedEditToRecipe(QueuedVanillaRecipeEdit edit, Recipe recipe)
+        {
+            if (recipe == null || edit == null || edit.AppliedTo.Contains(recipe)) return 0;
+
+            var resultLabel = recipe.result != null ? recipe.result.id : "<no result>";
+
+            if (edit.ResultId != null)
+            {
+                var resultId = recipe.result?.id;
+                if (string.IsNullOrWhiteSpace(resultId) ||
+                    !string.Equals(resultId.Trim(), edit.ResultId, StringComparison.OrdinalIgnoreCase))
+                    return 0;
+            }
+            else
+            {
+                bool matches;
+                try
+                {
+                    matches = edit.Match(recipe);
+                }
+                catch (Exception ex)
+                {
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        $"Recipes: Vanilla recipe edit predicate threw for '{resultLabel}': {ex.Message}");
+                    return 0;
+                }
+
+                if (!matches) return 0;
+            }
+
+            try
+            {
+                edit.Edit(recipe);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError(
+                    $"Recipes: Vanilla recipe edit threw for '{resultLabel}' and stays queued: {ex}");
+                return 0;
+            }
+
+            edit.AppliedTo.Add(recipe);
+            return 1;
+        }
+
+        private static bool IsLibraryRegisteredRecipe(Recipe recipe)
+        {
+            if (recipe?.result == null) return false;
+
+            return RegisteredRecipeKeys.Contains(BuildRecipeKey(recipe));
+        }
+
         private static void NormalizeRecipeIngredients(Recipe recipe)
         {
             if (recipe == null) return;
@@ -344,6 +463,26 @@ namespace CUCoreLib.Registries
             }
 
             return builder.ToString();
+        }
+
+        private sealed class QueuedVanillaRecipeEdit
+        {
+            internal readonly string ResultId;
+            internal readonly Func<Recipe, bool> Match;
+            internal readonly Action<Recipe> Edit;
+            internal readonly HashSet<Recipe> AppliedTo = new HashSet<Recipe>();
+
+            internal QueuedVanillaRecipeEdit(string resultId, Action<Recipe> edit)
+            {
+                ResultId = resultId;
+                Edit = edit;
+            }
+
+            internal QueuedVanillaRecipeEdit(Func<Recipe, bool> match, Action<Recipe> edit)
+            {
+                Match = match;
+                Edit = edit;
+            }
         }
 
     }

@@ -33,6 +33,7 @@ namespace CUCoreLib.Patches
         private static void InjectRecipes()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
+            RecipeRegistry.ApplyVanillaRecipeEdits();
             RecipeRegistry.InjectRegisteredRecipes();
         }
 

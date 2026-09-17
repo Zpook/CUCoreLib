@@ -415,6 +415,47 @@ namespace CUCoreLib.Helpers
             EditVanillaItem(itemId, edit);
         }
 
+        /// <summary>
+        /// Applies an edit to every vanilla recipe producing the given result item or liquid ID.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// </summary>
+        /// <param name="resultId">Vanilla result ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static void EditVanillaRecipes(string resultId, Action<Recipe> edit)
+        {
+            if (RecipeRegistry.QueueVanillaRecipeEdit(resultId, edit) > 0)
+            {
+                RecipeRegistryPatches.RefreshCraftingUi();
+            }
+        }
+
+        public static void editVanillaRecipes(string resultId, Action<Recipe> edit)
+        {
+            EditVanillaRecipes(resultId, edit);
+        }
+
+        /// <summary>
+        /// Applies an edit to every vanilla recipe the predicate selects.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// Predicates run at apply time, so they must not capture disposable per-call state.
+        /// </summary>
+        /// <param name="match">Predicate selecting which vanilla <see cref="Recipe"/> entries to edit.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static void EditVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (RecipeRegistry.QueueVanillaRecipeEdit(match, edit) > 0)
+            {
+                RecipeRegistryPatches.RefreshCraftingUi();
+            }
+        }
+
+        public static void editVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            EditVanillaRecipes(match, edit);
+        }
+
         public static bool IsInWorld()
         {
             return IsWorldGenerationReady() && PlayerCamera.main != null && PlayerCamera.main.body != null;
