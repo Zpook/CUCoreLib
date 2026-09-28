@@ -20,12 +20,19 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
 - Added `CUCoreUtils.CheckModVersion("com.example.mymod");` for automated-ish version checking, see [https://cucorelib.web.app/docs/utils/](https://cucorelib.web.app/docs/utils/) for more info
 - `SpawnFrequency` now has a float overload! Pass fractions such as `1.5f`, `0.01f`, or `12.42f` through the new overload for a chance to spawn more (or less) entires of your item into the lootpool (Thanks, @Jetfire).
+- `createLocale` now accepts an optional mod GUID, e.g. `createLocale net.Jimmyking.netdescents`
+- Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
+- ^ that is, any given locale with the mod GUID inside the file name takes priority for said mod
+- `AssetLoader` audio loading now supports `.ogg` files. Rejoice, `.ogg` enjoyers!
 
 ### Changes
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
+- Custom buildings (and items) no longer stick around between scene changes in certain cases. This shouldn't (?) break your mods, but do tell me if it does
 
 ### Fixes
+- `EnableHotReload` warns instead of throws when it can't see `Awake()`
+- Terrain tiles now use IDs 0-255 (Fixing multiplayer tiles breaking for people without ccl joining)
 - Fixed mod keybind descriptions missing, I'm honestly not sure why it took this long to fix >.>
 - Fixed custom battery charge resetting (Thanks, MCPO-Spartan-117!)
 - ""Fixed"" large amounts of data being truncated when sending over multiplayer requests
