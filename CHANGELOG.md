@@ -10,7 +10,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.7 (Nightly)
 
 ### New Stuff!
-- Added `CUCoreUtils.EditVanillaRecipes(resultId, edit)` and `CUCoreUtils.EditVanillaRecipes(match, edit)` (plus the lowercase `editVanillaRecipes` aliases) for modifying existing vanilla recipes in place. Edits queue during plugin Awake, apply as soon as the game builds its recipe list, and reapply automatically if the list is ever rebuilt. Only vanilla recipes are edited; recipes registered through `RecipeRegistry.Register` are never touched. Edits that throw are logged and skipped instead of breaking the crafting menu, and the crafting UI refreshes when edits apply while it is already open.
+- Added `CUCoreUtils.EditVanillaRecipes(resultId, edit)` and `CUCoreUtils.EditVanillaRecipes(match, edit)` for modifying existing vanilla recipes in place.
 
 ## v1.0.6 (Nightly)
 

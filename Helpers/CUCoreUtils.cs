@@ -430,11 +430,6 @@ namespace CUCoreLib.Helpers
             }
         }
 
-        public static void editVanillaRecipes(string resultId, Action<Recipe> edit)
-        {
-            EditVanillaRecipes(resultId, edit);
-        }
-
         /// <summary>
         /// Applies an edit to every vanilla recipe the predicate selects.
         /// The edit is queued automatically when called before the vanilla recipe list exists and is
@@ -449,11 +444,6 @@ namespace CUCoreLib.Helpers
             {
                 RecipeRegistryPatches.RefreshCraftingUi();
             }
-        }
-
-        public static void editVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
-        {
-            EditVanillaRecipes(match, edit);
         }
 
         public static bool IsInWorld()

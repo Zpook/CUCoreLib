@@ -198,8 +198,8 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(resultId) || edit == null) return 0;
 
-            var key = resultId.Trim();
-            if (!VanillaRecipeIdEdits.TryGetValue(key, out var edits))
+            string key = resultId.Trim();
+            if (!VanillaRecipeIdEdits.TryGetValue(key, out List<QueuedVanillaRecipeEdit> edits))
             {
                 edits = new List<QueuedVanillaRecipeEdit>();
                 VanillaRecipeIdEdits[key] = edits;
@@ -226,13 +226,13 @@ namespace CUCoreLib.Registries
             if (Recipes.recipes == null) return 0;
             if (VanillaRecipeIdEdits.Count == 0 && VanillaPredicateRecipeEdits.Count == 0) return 0;
 
-            var mutations = 0;
+            int mutations = 0;
 
-            foreach (var edits in VanillaRecipeIdEdits.Values)
-                foreach (var edit in edits)
+            foreach (List<QueuedVanillaRecipeEdit> edits in VanillaRecipeIdEdits.Values)
+                foreach (QueuedVanillaRecipeEdit edit in edits)
                     mutations += ApplyQueuedEdit(edit);
 
-            foreach (var edit in VanillaPredicateRecipeEdits)
+            foreach (QueuedVanillaRecipeEdit edit in VanillaPredicateRecipeEdits)
                 mutations += ApplyQueuedEdit(edit);
 
             if (mutations > 0)
@@ -245,8 +245,8 @@ namespace CUCoreLib.Registries
         {
             if (Recipes.recipes == null) return 0;
 
-            var mutations = 0;
-            foreach (var recipe in Recipes.recipes.ToArray())
+            int mutations = 0;
+            foreach (Recipe recipe in Recipes.recipes.ToArray())
             {
                 if (IsLibraryRegisteredRecipe(recipe)) continue;
                 mutations += ApplyQueuedEditToRecipe(edit, recipe);
