@@ -296,6 +296,7 @@ namespace CUCoreLib.Registries
                 return 0;
             }
 
+            ApplyVanillaRecipeInvariants(recipe);
             edit.AppliedTo.Add(recipe);
             return 1;
         }
@@ -322,6 +323,25 @@ namespace CUCoreLib.Registries
 
                 item.specificId = item.specificId.Trim();
                 item.specific = true;
+            }
+        }
+
+        private static void ApplyVanillaRecipeInvariants(Recipe recipe)
+        {
+            if (recipe == null) return;
+
+            NormalizeRecipeIngredients(recipe);
+            if (recipe.items == null) return;
+
+            var resultId = recipe.isRepair || recipe.result == null ||
+                           string.IsNullOrWhiteSpace(recipe.result.id)
+                ? string.Empty
+                : recipe.result.id;
+
+            foreach (var item in recipe.items)
+            {
+                if (item == null) continue;
+                item.ignoredId = resultId;
             }
         }
 
