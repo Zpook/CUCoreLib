@@ -11,6 +11,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added `CUCoreUtils.EditVanillaRecipes(resultId, edit)` and `CUCoreUtils.EditVanillaRecipes(match, edit)` for modifying existing vanilla recipes in place.
+- Vanilla recipe edits now compose in queue order across result-ID and predicate targeting. 
 
 ## v1.0.6 (Nightly)
 

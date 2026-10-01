@@ -424,10 +424,7 @@ namespace CUCoreLib.Helpers
         /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
         public static void EditVanillaRecipes(string resultId, Action<Recipe> edit)
         {
-            if (RecipeRegistry.QueueVanillaRecipeEdit(resultId, edit) > 0)
-            {
-                RecipeRegistryPatches.RefreshCraftingUi();
-            }
+            RecipeRegistry.QueueVanillaRecipeEdit(resultId, edit);
         }
 
         /// <summary>
@@ -440,10 +437,7 @@ namespace CUCoreLib.Helpers
         /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
         public static void EditVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
         {
-            if (RecipeRegistry.QueueVanillaRecipeEdit(match, edit) > 0)
-            {
-                RecipeRegistryPatches.RefreshCraftingUi();
-            }
+            RecipeRegistry.QueueVanillaRecipeEdit(match, edit);
         }
 
         public static bool IsInWorld()
