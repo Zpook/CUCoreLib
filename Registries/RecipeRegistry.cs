@@ -38,7 +38,7 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            ApplyRecipeInvariants(recipe);
+            NormalizeRecipeIngredients(recipe);
             if (!ValidateRecipeReferences(recipe)) return;
 
             var key = BuildRecipeKey(recipe);
@@ -81,7 +81,7 @@ namespace CUCoreLib.Registries
         {
             if (Recipes.recipes == null || recipe?.result == null) return false;
             EnsureCurrentRecipeList();
-            ApplyRecipeInvariants(recipe);
+            NormalizeRecipeIngredients(recipe);
             if (!ValidateRecipeReferences(recipe, deferVanillaValidation: false)) return false;
 
             var recipeKey = BuildRecipeKey(recipe);
@@ -210,8 +210,8 @@ namespace CUCoreLib.Registries
             return RecipeVanillaEditQueue.ApplyVanillaRecipeEdits();
         }
 
-        // Vanilla's SetUpRecipes normalization (Unpack/Assembly-CSharp/Recipes.cs:4393-4404).
-        internal static void ApplyRecipeInvariants(Recipe recipe)
+        // Mirrors vanilla's SetUpRecipes normalization loop.
+        internal static void NormalizeRecipeIngredients(Recipe recipe)
         {
             if (recipe == null) return;
 

@@ -11,7 +11,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added `RecipeRegistry.EditVanillaRecipes(resultId, edit)` and `RecipeRegistry.EditVanillaRecipes(match, edit)` for modifying existing vanilla recipes in place.
-- Vanilla recipe edits now compose in queue order across result-ID and predicate targeting. 
+- Vanilla recipe edits now compose in queue order across result-ID and predicate targeting.
 
 ## v1.0.6 (Nightly)
 

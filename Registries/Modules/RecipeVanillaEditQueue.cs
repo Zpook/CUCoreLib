@@ -109,7 +109,7 @@ namespace CUCoreLib.Registries.Modules
                     return false;
                 }
 
-                RecipeRegistry.ApplyRecipeInvariants(recipe);
+                RecipeRegistry.NormalizeRecipeIngredients(recipe);
                 AppliedTo.Add(recipe);
                 return true;
             }
