@@ -18,11 +18,13 @@ namespace CUCoreLib.Registries
     public static class ItemRegistry
     {
         private const string MissingItemIconResourcePath = "Data.MissingItem.png";
+        private const string EmptySpriteResourcePath = "Data.Empty.png";
 
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
             new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
 
         private static Sprite missingItemIcon;
+        private static Sprite emptySprite;
 
         private static readonly Dictionary<string, List<Action<ItemInfo>>> VanillaItemEdits =
             new Dictionary<string, List<Action<ItemInfo>>>(StringComparer.OrdinalIgnoreCase);
@@ -369,6 +371,7 @@ namespace CUCoreLib.Registries
                             ["intensity"] = info.Light.Intensity,
                             ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
                             ["falloffIntensity"] = info.Light.FalloffIntensity,
+                            ["volumeIntensity"] = info.Light.VolumeIntensity,
                             ["pointLightOuterRadius"] = info.Light.PointLightOuterRadius,
                             ["pointLightInnerRadius"] = info.Light.PointLightInnerRadius,
                             ["pointLightOuterAngle"] = info.Light.PointLightOuterAngle,
@@ -376,6 +379,7 @@ namespace CUCoreLib.Registries
                             ["lightType"] = (int)info.Light.LightType,
                             ["offsetX"] = info.Light.Offset.x,
                             ["offsetY"] = info.Light.Offset.y,
+                            ["enabled"] = info.Light.Enabled,
                             ["addLightItem"] = info.Light.AddLightItem
                         };
 
@@ -526,6 +530,7 @@ namespace CUCoreLib.Registries
                         Intensity = light.Value<float?>("intensity") ?? 0.75f,
                         Color = NetworkSnapshotSerialization.ReadColor(light["color"], Color.white),
                         FalloffIntensity = light.Value<float?>("falloffIntensity") ?? 0.5f,
+                        VolumeIntensity = light.Value<float?>("volumeIntensity"),
                         PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
                         PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
                         PointLightOuterAngle = light.Value<float?>("pointLightOuterAngle") ?? 360f,
@@ -533,6 +538,7 @@ namespace CUCoreLib.Registries
                         LightType = (CustomLightType)(light.Value<int?>("lightType") ?? 3),
                         Offset =
                             new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
+                        Enabled = light.Value<bool?>("enabled") ?? true,
                         AddLightItem = light.Value<bool?>("addLightItem") ?? true
                     };
 
@@ -842,6 +848,15 @@ namespace CUCoreLib.Registries
             return missingItemIcon;
         }
 
+        internal static Sprite GetEmptySprite()
+        {
+            if (IsValidIcon(emptySprite)) return emptySprite;
+
+            emptySprite = AssetLoader.LoadEmbeddedSprite(EmptySpriteResourcePath, AssetLoader.PPU_WORLD,
+                typeof(ItemRegistry).Assembly);
+            return emptySprite;
+        }
+
         internal static void InjectSingleItem(string id, CustomItemInfo info, bool replaceExisting = false)
         {
             if (string.IsNullOrWhiteSpace(id) || info == null || Item.GlobalItems == null) return;
@@ -1086,7 +1101,14 @@ namespace CUCoreLib.Registries
                 !string.IsNullOrWhiteSpace(info.wearSlotId))
                 info.SetDefault(CustomItemExplicitField.Wearable, true);
 
-            if (!info.wearable || info.useAction != null) return;
+            if (!info.wearable) return;
+
+            // Vanilla Wearable indexes its secondary arrays in Awake/ClearSprites, so a wearable with no worn
+            // visuals needs an invisible sprite rather than a null one: null crashes the wear and shows the icon.
+            if (info.WornSprite == null && (info.MultiWornSprites == null || info.MultiWornSprites.Count == 0))
+                info.WornSprite = GetEmptySprite();
+
+            if (info.useAction != null) return;
 
             info.useAction = (body, item) =>
             {

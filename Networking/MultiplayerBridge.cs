@@ -41,6 +41,7 @@ namespace CUCoreLib.Networking
         private const string PayloadField = "payload";
         private const ushort RequestMessageId = 56420;
         private const ushort ResponseMessageId = 56421;
+        private const string RelayChannel = "cucorelib.mp.broadcast";
 
         private static readonly Dictionary<string, Func<JToken, JToken>> ServerHandlers =
             new Dictionary<string, Func<JToken, JToken>>(StringComparer.Ordinal);
@@ -60,6 +61,8 @@ namespace CUCoreLib.Networking
         private static Assembly _krokAssembly;
         private static Type _mpType;
         private static Type _netType;
+        private static readonly Dictionary<string, PropertyInfo> NetBoolProperties =
+            new Dictionary<string, PropertyInfo>(StringComparer.Ordinal);
         private static Type _netModeType;
         private static Type _serverMainType;
         private static Type _clientMainType;
@@ -226,6 +229,8 @@ namespace CUCoreLib.Networking
 
             _initialized = true;
             _harmony = harmony;
+            RegisterServerHandler(RelayChannel, HandleRelay);
+
             if (TryResolveRuntime())
             {
                 InstallReceivers();
@@ -281,6 +286,85 @@ namespace CUCoreLib.Networking
 
             var targets = includeHost ? GetMemberList("AllClientIds") : GetMemberList("AllClientIdsExceptHost");
             return SendMessage(ResponseMessageId, channel, "event", payload, reliable, null, 0u, targets);
+        }
+
+        public static bool BroadcastEverywhere(string channel, object payload = null, bool reliable = true)
+        {
+            return BroadcastRelayed(channel, null, payload, reliable);
+        }
+
+        public static bool BroadcastToPeer(string channel, uint clientId, object payload = null, bool reliable = true)
+        {
+            return BroadcastRelayed(channel, clientId, payload, reliable);
+        }
+
+        private static bool BroadcastRelayed(string channel, uint? target, object payload, bool reliable)
+        {
+            if (string.IsNullOrWhiteSpace(channel)) return false;
+
+            var name = channel.Trim();
+            var token = NormalizePayload(payload);
+
+            if (!IsAvailable || !IsRunning)
+            {
+                // No session: this instance is the whole lobby, so the local handler is the only delivery.
+                InvokeClientHandler(name, token);
+                return target == null;
+            }
+
+            if (IsServer) return Deliver(name, target, token, reliable);
+
+            // Clients cannot reach each other, so the host does the routing. Always reliable: losing
+            // this hop would lose the send for everyone it covers.
+            var envelope = new JObject
+            {
+                ["channel"] = name,
+                ["reliable"] = reliable,
+                ["payload"] = token
+            };
+            if (target.HasValue) envelope["target"] = target.Value;
+
+            return SendToServer(RelayChannel, envelope);
+        }
+
+        private static bool Deliver(string channel, uint? target, JToken payload, bool reliable)
+        {
+            if (target == null)
+            {
+                Broadcast(channel, payload, includeHost: false, reliable: reliable);
+                InvokeClientHandler(channel, payload);
+                return true;
+            }
+
+            if (ContainsClientId("AllClientIdsExceptHost", target.Value))
+                return SendToClient(target.Value, channel, payload, reliable);
+
+            if (!ContainsClientId("AllClientIds", target.Value)) return false;
+
+            InvokeClientHandler(channel, payload);
+            return true;
+        }
+
+        private static JToken HandleRelay(JToken envelope)
+        {
+            var channel = envelope?.Value<string>("channel");
+            if (string.IsNullOrWhiteSpace(channel)) return null;
+
+            Deliver(channel.Trim(), envelope.Value<uint?>("target"), envelope["payload"],
+                envelope.Value<bool?>("reliable") ?? true);
+            return null;
+        }
+
+        private static bool ContainsClientId(string memberName, uint clientId)
+        {
+            if (!(GetMemberList(memberName) is IEnumerable list)) return false;
+
+            foreach (var entry in list)
+            {
+                if (ConvertClientIdToUInt(entry) == clientId) return true;
+            }
+
+            return false;
         }
 
         internal static JToken NormalizePayload(object payload)
@@ -344,16 +428,21 @@ namespace CUCoreLib.Networking
             }
             else
             {
-                if (!ClientHandlers.TryGetValue(channel, out var handler)) return;
-                try
-                {
-                    handler(payload);
-                }
-                catch (Exception ex)
-                {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer client handler failed for '" + channel +
-                                                    "'.\n" + ex);
-                }
+                InvokeClientHandler(channel, payload);
+            }
+        }
+
+        private static void InvokeClientHandler(string channel, JToken payload)
+        {
+            if (!ClientHandlers.TryGetValue(channel, out var handler)) return;
+            try
+            {
+                handler(payload);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer client handler failed for '" + channel +
+                                                "'.\n" + ex);
             }
         }
 
@@ -697,6 +786,7 @@ namespace CUCoreLib.Networking
 
             _mpType = _krokAssembly.GetType(MpTypeName, false);
             _netType = _krokAssembly.GetType(NetTypeName, false);
+            NetBoolProperties.Clear();
             _netModeType = _krokAssembly.GetType(NetTypeEnumName, false);
             _serverMainType = _krokAssembly.GetType(ServerMainTypeName, false);
             _clientMainType = _krokAssembly.GetType(ClientMainTypeName, false);
@@ -721,10 +811,10 @@ namespace CUCoreLib.Networking
             _serverSendToMethod = ResolveMethod(_netType, new[] { "Server_SendTo" },
                 new[] { _deliveryMethodType, _writerType, typeof(uint) });
             _serverSendToClientsMethod = ResolveSendToClientsMethod(_netType, _deliveryMethodType, _writerType);
-            _registerServerReceiverMethod = ResolveMethod(_netType,
-                new[] { "RegisterServerReceiver", "RegisterServerReciever" }, new[] { typeof(ushort), null });
-            _registerClientReceiverMethod = ResolveMethod(_netType,
-                new[] { "RegisterClientReceiver", "RegisterClientReciever" }, new[] { typeof(ushort), null });
+            _registerServerReceiverMethod = ResolveMethod(_netType, new[] { "RegisterServerReceiver" },
+                new[] { typeof(ushort), null });
+            _registerClientReceiverMethod = ResolveMethod(_netType, new[] { "RegisterClientReceiver" },
+                new[] { typeof(ushort), null });
             _writerPutStringMethod = ResolveStringPutMethod();
             _readerGetStringMethod = ResolveStringGetMethod();
             _writerPutUShortMethod = _writerType.GetMethod("Put", new[] { typeof(ushort) });
@@ -803,6 +893,7 @@ namespace CUCoreLib.Networking
                                     ParameterMatches(writerType, candidate.Parameters[1].ParameterType))
                 .ToArray();
 
+            MethodInfo looseFallback = null;
             foreach (var candidate in candidates)
             {
                 var targetsType = UnwrapByRef(candidate.Parameters[2].ParameterType);
@@ -811,23 +902,11 @@ namespace CUCoreLib.Networking
 
                 var elementType = targetsType.GetGenericArguments()[0];
                 if (IsClientIdType(elementType)) return candidate.Method;
+                if (looseFallback == null && elementType.IsValueType) looseFallback = candidate.Method;
             }
 
-            foreach (var candidate in candidates)
-            {
-                var targetsType = UnwrapByRef(candidate.Parameters[2].ParameterType);
-                if (targetsType == null || !targetsType.IsGenericType) continue;
-                if (targetsType.GetGenericTypeDefinition() != typeof(IEnumerable<>)) continue;
-
-                var elementType = targetsType.GetGenericArguments()[0];
-                if (elementType.IsValueType) return candidate.Method;
-            }
-
-            // Fall back to the legacy loose resolution so a future KrokMP
-            // signature change degrades to the previous behaviour instead of
-            // failing the whole bridge resolution outright.
-            return ResolveMethod(netType, new[] { "Server_SendToClients" },
-                new[] { deliveryMethodType, writerType, typeof(IEnumerable) });
+          
+            return looseFallback;
         }
 
         private static MethodInfo GetSendToClientsInvoker()
@@ -859,18 +938,13 @@ namespace CUCoreLib.Networking
             var deliveryType = UnwrapByRef(parameters[0].ParameterType);
             var writerType = UnwrapByRef(parameters[1].ParameterType);
             var targetsType = UnwrapByRef(parameters[2].ParameterType);
-            // The wrapper narrows the boxed targets object with a castclass, which
-            // is only legal for reference types. If a future KrokMP signature ever
-            // used a value type here, fall back to the raw method (the old
-            // behaviour) rather than emitting invalid IL.
+           
             if (deliveryType == null || writerType == null || targetsType == null || targetsType.IsValueType)
                 return method;
 
             // The wrapper forwards to the original `in` signature. C# `in`
             // parameters are emitted as byref parameters carrying a
-            // modreq(IsReadOnlyAttribute); Mono's JIT ignores custom modifiers
-            // when verifying call sites, so pushing the addresses of locals is
-            // sufficient and the wrapper verifies fine.
+            // modreq(IsReadOnlyAttribute)
             //
             // IL:
             //   ldarg.0                -> stloc.0 (delivery)
@@ -879,12 +953,7 @@ namespace CUCoreLib.Networking
             //   ldloca.0, ldloca.1, ldloca.2
             //   call Server_SendToClients
             //   ret
-            //
-            // The third wrapper parameter is deliberately declared as `object`
-            // (instead of the unknown IEnumerable<knetid> type) so that
-            // MethodInfo.Invoke accepts the List<knetid> argument via its normal
-            // assignability check; the castclass in the IL then narrows it to the
-            // exact interface type the original method expects.
+        
             var invoker = new DynamicMethod(
                 "CUCoreLib_MP_SendToClients_Invoker_" + _dynamicMethodCounter++,
                 typeof(void),
@@ -980,8 +1049,12 @@ namespace CUCoreLib.Networking
         {
             if (_netType == null) return false;
 
-            var property = _netType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
-            if (property == null || property.PropertyType != typeof(bool)) return false;
+            if (!NetBoolProperties.TryGetValue(memberName, out var property))
+            {
+                property = _netType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
+                if (property == null || property.PropertyType != typeof(bool)) return false;
+                NetBoolProperties[memberName] = property;
+            }
 
             return GetStaticBool(property);
         }

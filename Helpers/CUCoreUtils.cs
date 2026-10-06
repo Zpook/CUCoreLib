@@ -164,9 +164,14 @@ namespace CUCoreLib.Helpers
         private static string LastDialogueText;
 
         /// <summary>
-        /// Invoked after the <c>heal</c> console command heals a player.
+        /// Invoked after the <c>heal</c> console command heals the local player.
         /// </summary>
         public static event Action OnHeal;
+
+        /// <summary>
+        /// Invoked for every player a heal reaches, with that player's body. Other players' bodies only show up in multiplayer.
+        /// </summary>
+        public static event Action<Body> OnHealPlayer;
 
         /// <summary>
         /// Invoked when the player successfully enters last stand.
@@ -208,7 +213,11 @@ namespace CUCoreLib.Helpers
 
         internal static void RaiseOnHeal(Body player = null)
         {
-            RaisePlayerEvent(OnHeal, player);
+            TryGetBody(out var local);
+
+            if (player != null) OnHealPlayer?.Invoke(player);
+            // Other players' heals stop at OnHealPlayer so OnHeal keeps its once-per-local-heal contract.
+            if (ReferenceEquals(player, local)) RaisePlayerEvent(OnHeal, player);
         }
 
         internal static void RaiseOnLastStand(Body player = null)
@@ -641,7 +650,6 @@ namespace CUCoreLib.Helpers
 
         /// <summary>
         /// Updates the registered worn sprite for a custom item and refreshes every live instance with the same item ID.
-        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
         /// </summary>
         /// <param name="itemId">Registered custom item id to update.</param>
         /// <param name="wornSprite">Sprite to use while the item is worn.</param>
@@ -660,7 +668,7 @@ namespace CUCoreLib.Helpers
 
         /// <summary>
         /// Updates the registered worn sprite for the item's ID and refreshes every live instance with that same item ID.
-        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
+        /// Pass <c>null</c> to clear the custom worn sprite; a wearable with no other worn sprites then goes invisible.
         /// </summary>
         /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
         /// <param name="wornSprite">Sprite to use while the item is worn.</param>
