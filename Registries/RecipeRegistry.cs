@@ -180,12 +180,27 @@ namespace CUCoreLib.Registries
             result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
         }
 
-        internal static int QueueVanillaRecipeEdit(string resultId, Action<Recipe> edit)
+        /// <summary>
+        /// Applies an edit to every vanilla recipe producing the given result item or liquid ID.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// </summary>
+        /// <param name="resultId">Vanilla result ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static int EditVanillaRecipes(string resultId, Action<Recipe> edit)
         {
             return RecipeVanillaEditQueue.QueueVanillaRecipeEdit(resultId, edit);
         }
 
-        internal static int QueueVanillaRecipeEdit(Func<Recipe, bool> match, Action<Recipe> edit)
+        /// <summary>
+        /// Applies an edit to every vanilla recipe the predicate selects.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// Predicates run at apply time, so they must not capture disposable per-call state.
+        /// </summary>
+        /// <param name="match">Predicate selecting which vanilla <see cref="Recipe"/> entries to edit.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static int EditVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
         {
             return RecipeVanillaEditQueue.QueueVanillaRecipeEdit(match, edit);
         }
