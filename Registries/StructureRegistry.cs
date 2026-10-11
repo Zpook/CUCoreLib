@@ -208,6 +208,8 @@ namespace CUCoreLib.Registries
 
                     world.SetLoadingTextNoLocale("Generating CUCoreLib Structures..\n " + definition.ID + " (" +
                                                  (i + 1) + "/" + countToSpawn + ")\n\n");
+                    Networking.MultiplayerLoadingProgress.Report(
+                        "Generating CUCoreLib Structures..\n " + definition.ID, i + 1, countToSpawn);
                     yield return null;
                 }
             }
@@ -1273,7 +1275,7 @@ namespace CUCoreLib.Registries
                     definition.CustomProperties.TryGetValue(HealthKey, out var rawHealth) &&
                     float.TryParse(rawHealth, NumberStyles.Float, CultureInfo.InvariantCulture, out var health) &&
                     health > 0f)
-                    building.health = health;
+                    building.SetHealth(health);
             }
         }
 

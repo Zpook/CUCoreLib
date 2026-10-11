@@ -6,6 +6,7 @@ using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
+using CUCoreLib.Patches;
 using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -130,9 +131,19 @@ namespace CUCoreLib.Registries
             return SpawnLayerMask.FromLayerNumber(layerNumber);
         }
 
+        public static int LayersToMask(int layerNumber)
+        {
+            return SpawnLayerMask.FromLayerNumber(layerNumber);
+        }
+
         public static int LayersToMask(params int[] layerNumbers)
         {
             return SpawnLayerMask.Combine(layerNumbers);
+        }
+
+        public static int AllLayersExcept(int excludedLayerNumber)
+        {
+            return SpawnLayerMask.Excluding(new[] { excludedLayerNumber });
         }
 
         public static int AllLayersExcept(params int[] excludedLayerNumbers)
@@ -378,9 +389,10 @@ namespace CUCoreLib.Registries
             if (NetworkSpawnComponentsWarningLogged) return;
 
             NetworkSpawnComponentsWarningLogged = true;
-            CUCoreLibPlugin.Log?.LogWarning(
+            // Assume it's a given now tbh, will uncomment once more support for custom components is added
+           /* CUCoreLibPlugin.Log?.LogWarning(
                 "CUCoreLib Buildings: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
-        }
+        */}
 
         public static bool Contains(string id)
         {
@@ -667,7 +679,7 @@ namespace CUCoreLib.Registries
         private static void ApplyBuildingFields(BuildingEntity building, CustomBuildingEntityDefinition definition)
         {
             building.id = definition.ID;
-            building.health = definition.Health;
+            building.SetHealth(definition.Health);
             building.requireGround = definition.RequireGround;
             building.metallic = definition.Metallic;
             building.cantHit = definition.CantHit;
@@ -957,6 +969,9 @@ namespace CUCoreLib.Registries
 
             if (isNearPlayer && obj.GetComponent<Rigidbody2D>() != null && obj.GetComponent<SpriteRenderer>() != null)
                 obj.AddComponent<FreshItemDrop>();
+
+            // Drops spawn through a raw Object.Instantiate, which bypasses Together's network hooks, thus a host-side drop never reaches clients without this
+            KrokMpCompatibilityPatches.EnsureItemNetworkRegistered(obj);
 
             return obj;
         }

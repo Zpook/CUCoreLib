@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using BepInEx.Bootstrap;
 using CUCoreLib.Data;
+using CUCoreLib.Networking;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
@@ -156,6 +157,15 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, FriendlyKeybindEntry> FriendlyKeybindsByActionId =
             new Dictionary<string, FriendlyKeybindEntry>(StringComparer.Ordinal);
         private static readonly int ItemLayerMask = LayerMask.GetMask("Item");
+
+        // ;)
+        private static readonly string[] FullGameOnlyTypeNames =
+        {
+            "GuardScript",
+            "GuardSpawner",
+            "EndLabScript",
+        };
+        private static bool? IsDemoCached;
 
         private static Talker ElectronicTalkerProxy;
         private static FieldInfo KrokMpChatFocusedField;
@@ -434,6 +444,50 @@ namespace CUCoreLib.Helpers
             return IsInWorld();
         }
 
+        /// <summary>
+        /// True when running against the Casualties Unknown demo build, false for the full game.
+        /// The demo is frozen and never gains full-game content (e.g. the Guard/End Lab characters),
+        /// so this scans for full-game-only types. Two or more distinct matches are required to declare the
+        /// full game, so a mod that happens to add a single same-named type won't fool the check. Cached after the first call.
+        /// </summary>
+        public static bool IsDemo()
+        {
+            if (IsDemoCached.HasValue) return IsDemoCached.Value;
+
+            var matched = new HashSet<string>(StringComparer.Ordinal);
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var typeName in FullGameOnlyTypeNames)
+            {
+                foreach (var assembly in assemblies)
+                {
+                    Type resolved;
+                    try
+                    {
+                        resolved = assembly.GetType(typeName, false);
+                    }
+                    catch
+                    {
+                        resolved = null;
+                    }
+
+                    if (resolved == null) continue;
+
+                    matched.Add(typeName);
+                    break;
+                }
+
+                if (matched.Count >= 2) break;
+            }
+
+            IsDemoCached = matched.Count < 2;
+            return IsDemoCached.Value;
+        }
+
+        public static bool isDemo()
+        {
+            return IsDemo();
+        }
+
         public static bool TryGetHeldItem(out Item item)
         {
             item = null;
@@ -466,11 +520,7 @@ namespace CUCoreLib.Helpers
 
         public static bool TryGetBody(out Body body)
         {
-            body = null;
-            if (PlayerCamera.main == null) return false;
-
-            body = PlayerCamera.main.body;
-            return body != null;
+            return MultiplayerApi.TryGetLocalBody(out body);
         }
 
         public static bool TryGetCamera(out PlayerCamera camera)
@@ -668,7 +718,6 @@ namespace CUCoreLib.Helpers
 
         /// <summary>
         /// Updates the registered worn sprite for the item's ID and refreshes every live instance with that same item ID.
-        /// Pass <c>null</c> to clear the custom worn sprite; a wearable with no other worn sprites then goes invisible.
         /// </summary>
         /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
         /// <param name="wornSprite">Sprite to use while the item is worn.</param>
@@ -1252,7 +1301,7 @@ namespace CUCoreLib.Helpers
                 Type chatType;
                 try
                 {
-                    chatType = assembly.GetType("KrokoshaCasualtiesMP.Chat", false);
+                    chatType = assembly.GetType("Together.Chat", false);
                 }
                 catch
                 {

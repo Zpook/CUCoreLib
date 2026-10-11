@@ -13,9 +13,29 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `RecipeRegistry.EditVanillaRecipes(resultId, edit)` and `RecipeRegistry.EditVanillaRecipes(match, edit)` for modifying existing vanilla recipes in place.
 - Vanilla recipe edits now compose in queue order across result-ID and predicate targeting.
 
-## v1.0.6 (Nightly)
+### Changes
+- (WIP)
+
+### Fixes
+- (WIP)
+
+## v1.0.6 (Stable)
 
 ### New Stuff!
+- Multiplayer snapshots now sync custom locale strings and recipes, and supports v5
+- It is time. (for fullgame preperations)
+
+### Changes
+- Multiplayer support now targets **Together v5.0.0** (plugin GUID `CasualtiesMP`). KrokMP 4.0.1 and 4.1.2 support has been deprecated. (If you need v4 support, you'll need to download CUCoreLib `v1.0.5` - mods written with cucorelib's api should still work!)
+- Custom building and custom liquid save data now carries the layer it was captured on (for saving + loading, in case the layer changes)
+
+### Fixes
+- Multiplayer liquid sync now uses the host's liquid ordering, if possible
+
+## v1.0.5 (MPV4 LTS)
+
+### New Stuff!
+- Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
 - Added `CUCoreUtils.GetLastDialogue(...)` for checking the last dialogue ID or selected text.
 - Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
@@ -25,19 +45,20 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
 - ^ that is, any given locale with the mod GUID inside the file name takes priority for said mod
 - `AssetLoader` audio loading now supports `.ogg` files. Rejoice, `.ogg` enjoyers!
-- KrokMP 4.1.2 support for some mods developed on 4.0.1 and 4.1.2. For mods using cucorelib's net send/recieve, it'll now work. For mods using reflection or harmony patchers on the affected renames, not much can be done sadly :(
 - Added `MultiplayerApi.BroadcastEverywhere(channel, payload, reliable)`,`MultiplayerApi.BroadcastToPeer(channel, clientId, payload, reliable)` 
 - Multiplayer `Heal` commands now trigger the OnHeal CUCoreUtils delegate
+- `LiquidTileRegistry` now has the same layer-mask helpers as tiles and buildings (`LayerToMask`, `LayersToMask`, `AllLayersExcept`)
 
 ### Changes
+- I guess the mod's v1.0.5 now? I pushed a hotfix, but that had the v1.0.5 version. I guess the stable is v1.0.5 now and next nightly is v1.0.6 then :p
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
 - Custom buildings (and items) no longer stick around between scene changes in certain cases. This shouldn't (?) break your mods, but do tell me if it does
 - Dropped the KrokMP v3 compat backfill, surely there's no one using v3 nowadays
-- Custom building and custom liquid save data now carries the layer it was captured on (for saving + loading, in case the layer changes)
-- Null `WornSprite`s now resolve properly as invisible (sprite)
 
 ### Fixes
+- Invalid recipe item or result IDs are rejected with an error instead of breaking the crafting menu.
+- Liquid track hotfixes for client multiplayer
 - `EnableHotReload` warns instead of throws when it can't see `Awake()`
 - Terrain tiles now use IDs 0-255 (Fixing multiplayer tiles breaking for people without ccl joining)
 - Fixed mod keybind descriptions missing, I'm honestly not sure why it took this long to fix >.>
@@ -45,23 +66,11 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - ""Fixed"" large amounts of data being truncated when sending over multiplayer requests
 - Fixed `AddRigidbody2D` (t'was a layer issue)
 - Fixed modded buildingEntites ignoring locale overlays for buildingEntites
-- Fixed modded setting tabs (UI) and refreshing for custom tabs (UX)
-- Multiplayer liquid sync now uses the host's liquid ordering, if possible
-- Sprites that `AssetLoader (or FileLoader)` build from a texture or file now use a Full Rect mesh, so it no longer spams `Sprite Tiling might not appear correctly because the Sprite used is not generated with Full Rect` in the logs. This change should be completely harmless
+- Reworked settings UI
 - `setbodyfield` and `setlimbfield` now autofill custom statuses too
+- Fixed liquidStack<> containers from always spawning at 100%
+- Multi-stage (same name) moodles no longer stack queued copies when their intensity changes
 
-
-## v1.0.5 (Stable)
-
-### New Stuff!
-- Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
-
-### Changes
-- I guess the mod's v1.0.5 now? I pushed a hotfix, but that had the v1.0.5 version. I guess the stable is v1.0.5 now and next nightly is v1.0.6 then :p
-
-### Fixes
-- Invalid recipe item or result IDs are rejected with an error instead of breaking the crafting menu.
-- Liquid track hotfixes for client multiplayer
 
 ## v1.0.4 
 
